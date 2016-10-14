@@ -1,6 +1,6 @@
 ---
 layout: post
-title: You're up and running!
+title: Run docker under windows with or without shared folder
 ---
 
 **Problematic:**
