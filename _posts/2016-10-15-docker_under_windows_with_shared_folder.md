@@ -19,21 +19,90 @@ be able to launch docker from windows, edit my project files from a local folder
  will be needed to be copied again
 
 ** Third Attempt: **
+ - use the priviledged mode of the docker compose file
+ <code>
+ version: '2'
 
-use of Docker Toolbox
-in this case, we will pass by a virtualbox image that can support shared folder(but we will not use it!) , but most of all that will  contain all of our source code and libraries.
-As the docker machine abstract the underlying Operating system, we don't have anymore the problem of windows path size for nodes modules.
+services:
+    php:
+        privileged: true
+        build: php7-fpm
+        expose:
+            - 9000
+        links:
+            - db:mysqldb
+            - redis
+        volumes:
+            - ${MY_APP_PATH}:/var/www/app
+...
+</code>
+the keypoint here is the priviledge option. With this you can launch a bash with privileged rights (true root user) that can do things like mount, apt-get, ...
 
-Note: before reading the next tutorial, don't install tyhe NDIS6 driver, if you have installed NDIS6 with VirtualBox and you have BSOD (Blue Screen Of the Death), try to use NDIS5 instead because there is a known issue with the new NDIS6 driver. Uninstall Virtualbox and try reinstalling the last version with a parameter
+Here the docker file associated to the service php
+<code>
+FROM php:7.0-fpm
 
-> VirtualBox-5.0.11-104101-Win.exe -msiparams NETWORKTYPE=NDIS5
+RUN apt-get update && apt-get install -y git unzip wget cifs-utils vim \
+    && docker-php-ext-install pdo_mysql opcache 
 
-Then follow the instructions of this tutorial: https://docs.docker.com/machine/drivers/hyper-v/
 
-Launch the docker machine from a Powershell with elevated rights (administrator mode) and cross your fingers
-> docker-machine create -d hyperv --hyperv-virtual-switch "Primary Virtual Switch" dev
+# opcache
+RUN { \
+		echo 'opcache.memory_consumption=128'; \
+		echo 'opcache.interned_strings_buffer=8'; \
+		echo 'opcache.max_accelerated_files=4000'; \
+		echo 'opcache.revalidate_freq=60'; \
+		echo 'opcache.fast_shutdown=1'; \
+		echo 'opcache.enable_cli=1'; \
+	} > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
-Next step, is to to execute docker containers via docker-compose from the docker-machine you have just created
+RUN echo "realpath_cache_size = 4096k; realpath_cache_ttl = 7200;" > /usr/local/etc/php/conf.d/php.ini
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
+    composer --version
+
+# Set timezone
+RUN rm /etc/localtime && \
+    ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime && \
+    "date"
+
+RUN echo 'alias sf="php app/console"' >> ~/.bashrc
+RUN echo 'alias sf3="php bin/console"' >> ~/.bashrc
+RUN echo 'alias ll="ls -al"' >> ~/.bashrc
+
+#Share a directory between windows and docker
+RUN mkdir -p /var/www/app
+RUN { \
+		echo "username=${SHARED_FOLDER_USER}"; \
+		echo "password=${SHARED_FOLDER_PWD}"; \
+		echo "domain=${SHARED_FOLDER_DOMAIN}"; \
+	} > $HOME/.smbcredentials
+RUN chmod 600 $HOME/.smbcredentials
+
+#RUN mount -t cifs -o credentials=$HOME/.smbcredentials,iocharset=utf8,rw,uid=33,gid=33,serverino //192.168.0.25/anonymous-poll /var/www/app 
+
+WORKDIR /var/www/app
+</code>
+the keypoints here are the installation of the package cifs-utils that allow the mount of samba folder
+You need to share your folder in windows (in my case the directory anonymous-poll) and in the file $HOME/.smbcredentials, you set the username and password needed to connect to this samba folder
+
+then you just have to launch these commands:
+<code>
+docker-compose down
+docker-compose build
+docker-compose up -d
+docker exec --privileged -it dockersymfonymaster_php_1 /bin/bash
+</code>
+
+From the bash
+<code>
+mount -t cifs -o credentials=$HOME/.smbcredentials,iocharset=utf8,rw,uid=33,gid=33,serverino //192.168.0.25/anonymous-poll /var/www/app
+</code>
+it's OK you have your windows folder mounted in your docker instance with user/group 33 (www-data)
+
+
+**Next step : be able to mount the directory during the "up" of the docker-compose**
 
 **Problematic2:**
 
