@@ -20,7 +20,7 @@ be able to launch docker from windows, edit my project files from a local folder
 
 ** Third Attempt: **
  - use the priviledged mode of the docker compose file
- <code>
+ ```yaml
  version: '2'
 
 services:
@@ -35,11 +35,11 @@ services:
         volumes:
             - ${MY_APP_PATH}:/var/www/app
 ...
-</code>
+```
 the keypoint here is the priviledge option. With this you can launch a bash with privileged rights (true root user) that can do things like mount, apt-get, ...
 
 Here the docker file associated to the service php
-<code>
+```bash
 FROM php:7.0-fpm
 
 RUN apt-get update && apt-get install -y git unzip wget cifs-utils vim \
@@ -83,22 +83,22 @@ RUN chmod 600 $HOME/.smbcredentials
 #RUN mount -t cifs -o credentials=$HOME/.smbcredentials,iocharset=utf8,rw,uid=33,gid=33,serverino //192.168.0.25/anonymous-poll /var/www/app 
 
 WORKDIR /var/www/app
-</code>
+```
 the keypoints here are the installation of the package cifs-utils that allow the mount of samba folder
 You need to share your folder in windows (in my case the directory anonymous-poll) and in the file $HOME/.smbcredentials, you set the username and password needed to connect to this samba folder
 
 then you just have to launch these commands:
-<code>
+```bash
 docker-compose down
 docker-compose build
 docker-compose up -d
 docker exec --privileged -it dockersymfonymaster_php_1 /bin/bash
-</code>
+```
 
 From the bash
-<code>
+```bash
 mount -t cifs -o credentials=$HOME/.smbcredentials,iocharset=utf8,rw,uid=33,gid=33,serverino //192.168.0.25/anonymous-poll /var/www/app
-</code>
+```
 it's OK you have your windows folder mounted in your docker instance with user/group 33 (www-data)
 
 
