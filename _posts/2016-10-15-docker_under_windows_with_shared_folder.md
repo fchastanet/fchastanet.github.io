@@ -36,7 +36,8 @@ services:
             - ${MY_APP_PATH}:/var/www/app
 ...
 ```
-the keypoint here is the priviledge option. With this you can launch a bash with privileged rights (true root user) that can do things like mount, apt-get, ...
+the keypoint here is the *priviledge* option. With this you can launch a bash with privileged rights (true root user) that can do things like mount, apt-get, ...
+Note that *privileged* option doesn't apply to the build phase. It's only applied to a running container. This is a restriction applied by docker, but it's not obvious from the docker-compose.yaml.
 
 Here the docker file associated to the service php
 ```bash
